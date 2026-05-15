@@ -43,7 +43,7 @@ stages:
             inputs:
               command: 'publish'
               projects: '$(projectPath)'
-              arguments: '--configuration $(buildConfiguration) --no-restore --output $(publishOutput)'
+              arguments: '--configuration $(buildConfiguration) --no-restore --no-self-contained --output $(publishOutput)'
               zipAfterPublish: false
 
           - task: ArchiveFiles@2
@@ -66,6 +66,7 @@ stages:
     jobs:
       - job: ScanJob
         displayName: 'Run Veracode Pipeline Scan'
+        timeoutInMinutes: 120
         steps:
           - task: DownloadBuildArtifacts@1
             displayName: 'Download build artifact'
