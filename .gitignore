@@ -1,0 +1,23 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# .NET build artifacts
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# SQLite database (runtime data)
+*.db
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+appsettings.Production.json
