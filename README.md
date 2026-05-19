@@ -8,7 +8,7 @@ A fully functional Medium-like blogging platform built with **ASP.NET Core** (ba
 
 ```
 csharp-test-app/
-├── aspnetcore-realworld-example-app/   # Backend — ASP.NET Core Web API
+├── conduit-backend/                    # Backend — ASP.NET Core Web API
 ├── conduit-frontend/                   # Frontend — React + Vite + Tailwind CSS
 └── run-conduit.ps1                     # One-click launcher script
 ```
@@ -49,7 +49,7 @@ cd C:\path\to\csharp-test-app
 **Option 2 — Two terminals manually:**
 ```powershell
 # Terminal 1 — Backend
-cd aspnetcore-realworld-example-app
+cd conduit-backend
 dotnet run --project src/Conduit
 
 # Terminal 2 — Frontend

@@ -1,5 +1,5 @@
 $root     = "C:\Users\DularaAbhiranda\Desktop\csharp-test-app"
-$backend  = Join-Path $root "aspnetcore-realworld-example-app"
+$backend  = Join-Path $root "conduit-backend"
 $frontend = Join-Path $root "conduit-frontend"
 
 # Start backend
