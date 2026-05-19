@@ -1,0 +1,42 @@
+name: Veracode Pipeline Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    name: Build and Veracode Pipeline Scan
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore aspnetcore-realworld-example-app/src/Conduit/Conduit.csproj
+
+      - name: Build and publish
+        run: |
+          dotnet publish aspnetcore-realworld-example-app/src/Conduit/Conduit.csproj \
+            --configuration Release \
+            --output ./publish_output \
+            --no-restore
+
+      - name: Zip artifacts for Veracode
+        run: zip -r veracode-artifact.zip ./publish_output/
+
+      - name: Veracode Pipeline Scan
+        uses: veracode/Veracode-pipeline-scan-action@v1
+        with:
+          vid: ${{ secrets.VERACODE_API_ID }}
+          vkey: ${{ secrets.VERACODE_API_KEY }}
+          file: veracode-artifact.zip
+          fail_build: false
