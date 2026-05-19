@@ -21,14 +21,15 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore aspnetcore-realworld-example-app/src/Conduit/Conduit.csproj
+        run: dotnet restore conduit-backend/src/Conduit/Conduit.csproj
 
       - name: Build and publish
         run: |
-          dotnet publish aspnetcore-realworld-example-app/src/Conduit/Conduit.csproj \
+          dotnet publish conduit-backend/src/Conduit/Conduit.csproj \
             --configuration Release \
             --output ./publish_output \
-            --no-restore
+            --no-restore \
+            --no-self-contained
 
       - name: Zip artifacts for Veracode
         run: zip -r veracode-artifact.zip ./publish_output/
@@ -39,4 +40,4 @@ jobs:
           vid: ${{ secrets.VERACODE_API_ID }}
           vkey: ${{ secrets.VERACODE_API_KEY }}
           file: veracode-artifact.zip
-          fail_build: false
+          fail_build: true
