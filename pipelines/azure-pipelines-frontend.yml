@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────
+# Conduit — Frontend Pipeline (React + Vite + Tailwind)
+# Triggers ONLY when files inside conduit-frontend/ change
+# ─────────────────────────────────────────────────────────
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - conduit-frontend/**
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - conduit-frontend/**
+
+variables:
+  nodeVersion: '18.x'
+  frontendDir: 'conduit-frontend'
+  artifactDir: '$(Build.ArtifactStagingDirectory)'
+
+# ─────────────────────────────────────────────
+# STAGE 1 — Build
+# ─────────────────────────────────────────────
+stages:
+  - stage: Build
+    displayName: 'Build Frontend'
+    jobs:
+      - job: BuildFrontend
+        displayName: 'Install → Build (Vite)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            displayName: 'Install Node.js $(nodeVersion)'
+            inputs:
+              versionSpec: $(nodeVersion)
+
+          - script: npm ci
+            displayName: 'Install dependencies (npm ci)'
+            workingDirectory: $(frontendDir)
+
+          - script: npm run build
+            displayName: 'Build (Vite production build)'
+            workingDirectory: $(frontendDir)
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Upload frontend artifact'
+            inputs:
+              PathtoPublish: '$(frontendDir)/dist'
+              ArtifactName: 'frontend-artifact'

@@ -1,41 +1,48 @@
-# Conduit — Azure DevOps CI/CD Pipeline
-# Builds backend + frontend, then runs Veracode Upload and Scan (Full SAST)
+# ─────────────────────────────────────────────────────────
+# Conduit — Backend Pipeline (ASP.NET Core)
+# Triggers ONLY when files inside conduit-backend/ change
 #
-# Required pipeline variables (set in Azure DevOps → Pipelines → Variables):
-#   VERACODE_API_ID   — Veracode API ID       (mark as secret)
-#   VERACODE_API_KEY  — Veracode API Key      (mark as secret)
+# Required pipeline variables (mark as secret):
+#   VERACODE_API_ID   — Veracode API ID
+#   VERACODE_API_KEY  — Veracode API Key
 #
-# Required Azure DevOps Marketplace extension:
+# Required marketplace extension:
 #   Veracode Application Security Platform
 #   https://marketplace.visualstudio.com/items?itemName=Veracode.veracode-vsts-build-extension
+# ─────────────────────────────────────────────────────────
 
 trigger:
   branches:
     include:
       - main
+  paths:
+    include:
+      - conduit-backend/**
 
 pr:
   branches:
     include:
       - main
+  paths:
+    include:
+      - conduit-backend/**
 
 variables:
   buildConfiguration: 'Release'
   dotnetVersion: '10.0.x'
-  nodeVersion: '18.x'
-  backendProject: 'conduit-backend/src/Conduit/Conduit.csproj'
-  frontendDir: 'conduit-frontend'
+  project: 'conduit-backend/src/Conduit/Conduit.csproj'
+  testProject: 'conduit-backend/tests/Conduit.IntegrationTests'
   artifactDir: '$(Build.ArtifactStagingDirectory)'
 
 # ─────────────────────────────────────────────
-# STAGE 1 — Build Backend
+# STAGE 1 — Build & Test
 # ─────────────────────────────────────────────
 stages:
-  - stage: Build_Backend
-    displayName: 'Build — Backend (C#)'
+  - stage: Build
+    displayName: 'Build & Test Backend'
     jobs:
-      - job: BuildBackend
-        displayName: 'Restore, Build & Publish .NET'
+      - job: BuildAndTest
+        displayName: 'Restore → Build → Test → Publish'
         pool:
           vmImage: 'ubuntu-latest'
         steps:
@@ -45,23 +52,21 @@ stages:
               packageType: sdk
               version: $(dotnetVersion)
 
-          - script: dotnet restore $(backendProject)
+          - script: dotnet restore $(project)
             displayName: 'Restore NuGet packages'
 
           - script: |
-              dotnet build $(backendProject) \
+              dotnet build $(project) \
                 --configuration $(buildConfiguration) \
                 --no-restore
-            displayName: 'Build backend'
+            displayName: 'Build'
 
           - script: |
-              dotnet test conduit-backend/tests/Conduit.IntegrationTests \
+              dotnet test $(testProject) \
                 --configuration $(buildConfiguration) \
-                --no-build \
                 --logger trx \
                 --results-directory $(artifactDir)/test-results
             displayName: 'Run integration tests'
-            continueOnError: false
 
           - task: PublishTestResults@2
             displayName: 'Publish test results'
@@ -71,70 +76,37 @@ stages:
             condition: always()
 
           - script: |
-              dotnet publish $(backendProject) \
+              dotnet publish $(project) \
                 --configuration $(buildConfiguration) \
                 --no-restore \
                 --no-self-contained \
-                --output $(artifactDir)/backend-publish
-            displayName: 'Publish backend artifacts'
+                --output $(artifactDir)/publish
+            displayName: 'Publish backend'
 
           - task: ArchiveFiles@2
-            displayName: 'Zip backend for Veracode'
+            displayName: 'Zip for Veracode'
             inputs:
-              rootFolderOrFile: '$(artifactDir)/backend-publish'
+              rootFolderOrFile: '$(artifactDir)/publish'
               includeRootFolder: false
               archiveType: zip
               archiveFile: '$(artifactDir)/veracode-backend.zip'
 
           - task: PublishBuildArtifacts@1
-            displayName: 'Upload backend artifact'
+            displayName: 'Upload build artifact'
             inputs:
               PathtoPublish: '$(artifactDir)/veracode-backend.zip'
               ArtifactName: 'backend-artifact'
 
 # ─────────────────────────────────────────────
-# STAGE 2 — Build Frontend
+# STAGE 2 — Veracode Security Scan
 # ─────────────────────────────────────────────
-  - stage: Build_Frontend
-    displayName: 'Build — Frontend (React)'
-    dependsOn: Build_Backend
-    jobs:
-      - job: BuildFrontend
-        displayName: 'Install, Build React + Vite'
-        pool:
-          vmImage: 'ubuntu-latest'
-        steps:
-          - task: NodeTool@0
-            displayName: 'Install Node.js $(nodeVersion)'
-            inputs:
-              versionSpec: $(nodeVersion)
-
-          - script: npm ci
-            displayName: 'Install npm dependencies'
-            workingDirectory: $(frontendDir)
-
-          - script: npm run build
-            displayName: 'Build frontend (Vite)'
-            workingDirectory: $(frontendDir)
-
-          - task: PublishBuildArtifacts@1
-            displayName: 'Upload frontend artifact'
-            inputs:
-              PathtoPublish: '$(frontendDir)/dist'
-              ArtifactName: 'frontend-artifact'
-
-# ─────────────────────────────────────────────
-# STAGE 3 — Veracode Security Scan
-# ─────────────────────────────────────────────
-  - stage: Security_Scan
-    displayName: 'Security — Veracode Upload & Scan'
-    dependsOn:
-      - Build_Backend
-      - Build_Frontend
+  - stage: SecurityScan
+    displayName: 'Veracode — Full SAST Scan'
+    dependsOn: Build
     condition: succeeded()
     jobs:
       - job: VeracodeScan
-        displayName: 'Veracode Full SAST Scan'
+        displayName: 'Upload & Scan (Full SAST)'
         pool:
           vmImage: 'ubuntu-latest'
         steps:
@@ -150,7 +122,7 @@ stages:
               ConnectionDetailsSelection: 'Credentials'
               apiId: '$(VERACODE_API_ID)'
               apiKey: '$(VERACODE_API_KEY)'
-              veracodeAppProfile: 'Conduit'
+              veracodeAppProfile: 'Conduit-Backend'
               version: '$(Build.BuildNumber)'
               filepath: '$(artifactDir)/backend-artifact/veracode-backend.zip'
               createSandBox: false
